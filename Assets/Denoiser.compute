@@ -1,0 +1,31 @@
+﻿#pragma kernel CSMain
+
+RWTexture2D<float4> Result;
+Texture2D<float4> colourBuffer;
+Texture2D<float> depthBuffer;
+Texture2D<float4> smoothBuffer;
+float iters;
+float depthBufferThreshold;
+
+half3 CubeBlur(float2 uv) {
+	half3 s = 0;
+	float div = 1;
+	for (float x = 0; x < iters; x++) {
+		for (float y = 0; y < iters; y++) {
+			float2 offsetUV = float2(uv.x + (x - iters / 2), uv.y + (y - iters / 2));
+			if (abs(depthBuffer[uv] - depthBuffer[offsetUV]) < depthBufferThreshold) {
+				s += colourBuffer[offsetUV].xyz / length(uv - offsetUV);
+				div += 1 / length(uv - offsetUV);
+			}
+		}
+	}
+	return s / div;
+}
+
+[numthreads(16,16,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	half4 output = half4(CubeBlur(id.xy), 1);
+	float3 v = colourBuffer[id.xy];
+    Result[id.xy] = float4(v, 1);
+}
